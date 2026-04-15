@@ -517,7 +517,7 @@ function renderFormatStep(el) {
     <div class="field">
       <label>Select up to 2 formats</label>
       <div class="pills">
-        ${['stableford','net','gross','match'].map(f => `
+        ${['stableford','net','gross','match','matchgross'].map(f => `
           <button class="pill ${setupData.formats.includes(f)?'active':''}" onclick="toggleFormat('${f}')">${fmtLabel(f)}</button>
         `).join('')}
       </div>
@@ -532,7 +532,7 @@ function renderFormatStep(el) {
 }
 
 function fmtLabel(f) {
-  return {stableford:'Stableford',net:'Net Strokeplay',gross:'Gross Strokeplay',match:'Match Play'}[f] || f;
+  return {stableford:'Stableford',net:'Net Strokeplay',gross:'Gross Strokeplay',match:'Match Play (Net)',matchgross:'Match Play (Gross)'}[f] || f;
 }
 
 function toggleFormat(f) {
@@ -715,6 +715,30 @@ function renderRunningSummary() {
     return { p, pi, gross, pts, grossDiff };
   }).sort((a, b) => fmt === 'stableford' ? b.pts - a.pts : a.gross - b.gross);
 
+  // Match play running summary
+  const isMatchFmt = r.formats.includes('match') || r.formats.includes('matchgross');
+  if (isMatchFmt && r.players.length === 2) {
+    const ms = matchPlayStatus(r, r.currentHole);
+    const statusStr = ms ? ms.status : 'All Square';
+    const p0holes = r.holeData.slice(0, holesPlayed).filter((h,i) => matchHoleResult(r,i) === 0).length;
+    const p1holes = r.holeData.slice(0, holesPlayed).filter((h,i) => matchHoleResult(r,i) === 1).length;
+    const halved = r.holeData.slice(0, holesPlayed).filter((h,i) => matchHoleResult(r,i) === -1).length;
+    return `<div style='background:var(--card);border-radius:var(--r);border:1px solid rgba(201,168,76,.2);margin-top:4px;overflow:hidden'>
+      <div style='background:var(--green-dark);padding:8px 10px;display:flex;justify-content:space-between;align-items:center'>
+        <span style='font-family:Bebas Neue,sans-serif;font-size:14px;letter-spacing:1px;color:var(--gold)'>MATCH STATUS</span>
+        <span style='font-size:11px;color:var(--text-muted)'>Thru ${holesPlayed}</span>
+      </div>
+      <div style='padding:12px 16px;text-align:center'>
+        <div style='font-size:20px;font-weight:700;color:var(--gold);margin-bottom:6px'>${statusStr}</div>
+        <div style='display:flex;justify-content:center;gap:16px;font-size:12px;color:var(--text-muted)'>
+          <span>${r.players[0].name}: ${p0holes}W</span>
+          <span>Halved: ${halved}</span>
+          <span>${r.players[1].name}: ${p1holes}W</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
   const cols = hasStableford
     ? `<div style="display:grid;grid-template-columns:1fr auto auto;gap:0;width:100%">
         <div style="font-size:10px;color:var(--text-muted);padding:0 10px 4px">Player</div>
@@ -765,6 +789,14 @@ function renderRunningSummary() {
 function runningInfo(p, pi) {
   const played = p.scores.filter(s => s > 0).length;
   if (!played) return 'Not started';
+  const isMatch = round.formats.includes('match') || round.formats.includes('matchgross');
+  if (isMatch && round.players.length === 2) {
+    const ms = matchPlayStatus(round, round.currentHole);
+    if (!ms) return 'Not started';
+    if (ms.leader === -1) return 'All Square';
+    if (ms.leader === pi) return ms.won ? `Won ${ms.up}&${ms.holesLeft}` : ms.dormie ? `Dormie ${ms.up}` : `${ms.up} UP`;
+    return ms.won ? `${ms.up}&${ms.holesLeft} down` : `${ms.up} DOWN`;
+  }
   const gross = p.scores.slice(0, round.currentHole+1).filter(s=>s>0).reduce((a,b)=>a+b,0);
   const parPlayed = round.holeData.slice(0, round.currentHole+1).reduce((a,h)=>a+h.par,0);
   const diff = gross - parPlayed;
@@ -800,6 +832,47 @@ function stablefordPts(score, par, strokes) {
   if (net === 0) return 2;
   if (net === 1) return 1;
   return 0;
+}
+
+
+function matchHoleResult(r, holeIdx) {
+  // returns hole result for 2-player match play gross
+  if (r.players.length < 2) return null;
+  const p0 = r.players[0].scores[holeIdx] || 0;
+  const p1 = r.players[1].scores[holeIdx] || 0;
+  if (!p0 || !p1) return null;
+  if (p0 < p1) return 0; // player 0 wins hole
+  if (p1 < p0) return 1; // player 1 wins hole
+  return -1; // halved
+}
+
+function matchPlayStatus(r, upToHole) {
+  // returns { leader: playerIndex, up: n, holesPlayed, dormie, won, status }
+  if (r.players.length < 2) return null;
+  let score = 0; // positive = p0 leads, negative = p1 leads
+  let holesPlayed = 0;
+  const isGross = r.formats.includes('matchgross');
+  for (let i = 0; i <= upToHole; i++) {
+    const p0s = r.players[0].scores[i] || 0;
+    const p1s = r.players[1].scores[i] || 0;
+    if (!p0s || !p1s) continue;
+    holesPlayed++;
+    const s0 = isGross ? p0s : p0s - strokesOnHole(r.players[0].hcp, r.holeData[i].si, r.holeData.length);
+    const s1 = isGross ? p1s : p1s - strokesOnHole(r.players[1].hcp, r.holeData[i].si, r.holeData.length);
+    if (s0 < s1) score++;
+    else if (s1 < s0) score--;
+  }
+  const holesLeft = r.holeData.length - upToHole - 1;
+  const up = Math.abs(score);
+  const leader = score > 0 ? 0 : score < 0 ? 1 : -1;
+  const won = up > holesLeft;
+  const dormie = up === holesLeft && up > 0;
+  let status;
+  if (leader === -1) status = 'All Square';
+  else if (won) status = `${r.players[leader].name} wins ${up}&${holesLeft > 0 ? holesLeft : 'up'}`;
+  else if (dormie) status = `${r.players[leader].name} Dormie ${up}`;
+  else status = `${r.players[leader].name} ${up} UP`;
+  return { leader, up, holesPlayed, holesLeft, dormie, won, status, score };
 }
 
 function prevHole() {
@@ -841,6 +914,7 @@ function showResults() {
   const fmt = r.formats[0];
   let sorted = [...r.players].map(p => ({...p, _gross: grossTotal(p,r), _net: netTotal(p,r), _pts: totalPts(p,r)}));
   if (fmt === 'stableford') sorted.sort((a,b) => b._pts - a._pts);
+  else if (fmt === 'match' || fmt === 'matchgross') { /* match play — order by match result */ }
   else sorted.sort((a,b) => a._net - b._net);
 
   // Podium
@@ -876,7 +950,29 @@ function renderLeaderboard() {
   const fmt = r.formats[0];
   let sorted = [...r.players].map(p => ({...p, _gross: grossTotal(p,r), _net: netTotal(p,r), _pts: totalPts(p,r)}));
   if (fmt === 'stableford') sorted.sort((a,b) => b._pts - a._pts);
-  else sorted.sort((a,b) => a._net - b._net);
+  else if (fmt !== 'match' && fmt !== 'matchgross') sorted.sort((a,b) => a._net - b._net);
+
+  // Match play leaderboard
+  if (fmt === 'match' || fmt === 'matchgross') {
+    const ms = matchPlayStatus(r, r.holeData.length - 1);
+    const statusStr = ms ? ms.status : 'All Square';
+    document.getElementById('res-tab-0').innerHTML = `<div style='padding:20px;text-align:center'>
+      <div style='font-size:14px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px'>${fmtLabel(fmt)} Result</div>
+      <div style='font-size:28px;font-weight:700;color:var(--gold);margin-bottom:16px'>${statusStr}</div>
+      <div style='display:flex;justify-content:center;gap:0'>${r.players.map((p,i) => {
+        const holeWins = r.holeData.filter((h,hi) => matchHoleResult(r,hi) === i).length;
+        const halved = r.holeData.filter((h,hi) => matchHoleResult(r,hi) === -1).length;
+        return `<div style='flex:1;max-width:140px;background:var(--card);border-radius:var(--r);padding:14px;margin:0 4px'>
+          <div style='font-size:15px;font-weight:600'>${p.name}</div>
+          <div style='font-size:32px;font-weight:700;color:var(--gold);margin:6px 0'>${holeWins}</div>
+          <div style='font-size:12px;color:var(--text-muted)'>holes won</div>
+          <div style='font-size:11px;color:var(--text-muted);margin-top:4px'>HCP ${p.hcp}</div>
+        </div>`;
+      }).join('')}<div style='display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 8px'><div style='font-size:24px;font-weight:700;color:var(--text-muted)'>${r.holeData.filter((h,hi)=>matchHoleResult(r,hi)===-1).length}</div><div style='font-size:10px;color:var(--text-muted)'>halved</div></div></div>`;
+    })
+    .join('')}</div>`;
+    return;
+  }
 
   const parTot = parTotal(r);
   const posClasses = ['gold','silver','bronze'];
