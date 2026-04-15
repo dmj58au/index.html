@@ -212,7 +212,43 @@
   </div>
   <div class="body">
     <div class="home-hero">
-      <div class="home-logo">GolfMate</div>
+      <svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" style="width:200px;height:130px;margin:0 auto;display:block">
+        <defs>
+          <radialGradient id="ballGrad" cx="40%" cy="35%" r="60%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#c8dfc8"/>
+          </radialGradient>
+          <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffe066"/>
+            <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <!-- sun glow -->
+        <circle cx="160" cy="28" r="22" fill="url(#sunGrad)" opacity="0.5"/>
+        <circle cx="160" cy="28" r="10" fill="#e8c97a" opacity="0.9"/>
+        <!-- rolling fairway hills -->
+        <ellipse cx="100" cy="118" rx="115" ry="38" fill="#1a6b3a" opacity="0.9"/>
+        <ellipse cx="30" cy="112" rx="55" ry="22" fill="#2d9653" opacity="0.7"/>
+        <ellipse cx="170" cy="115" rx="50" ry="18" fill="#2d9653" opacity="0.6"/>
+        <!-- flag pole -->
+        <line x1="105" y1="44" x2="105" y2="100" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- flag -->
+        <polygon points="105,44 130,53 105,62" fill="#c9a84c"/>
+        <!-- flag detail lines -->
+        <line x1="110" y1="50" x2="126" y2="56" stroke="#0f3d20" stroke-width="0.8" opacity="0.5"/>
+        <!-- golf ball -->
+        <circle cx="72" cy="100" r="11" fill="url(#ballGrad)" stroke="#aac8aa" stroke-width="0.8"/>
+        <!-- ball dimples -->
+        <circle cx="69" cy="97" r="1.2" fill="#b0c8b0" opacity="0.7"/>
+        <circle cx="75" cy="96" r="1.2" fill="#b0c8b0" opacity="0.7"/>
+        <circle cx="72" cy="102" r="1.2" fill="#b0c8b0" opacity="0.7"/>
+        <circle cx="66" cy="101" r="1.2" fill="#b0c8b0" opacity="0.7"/>
+        <circle cx="78" cy="101" r="1.2" fill="#b0c8b0" opacity="0.7"/>
+        <!-- hole cup shadow -->
+        <ellipse cx="105" cy="101" rx="6" ry="2.5" fill="#0a2810" opacity="0.6"/>
+        <!-- GolfMate wordmark -->
+        <text x="100" y="24" font-family="Bebas Neue, sans-serif" font-size="28" fill="#c9a84c" text-anchor="middle" letter-spacing="3">GOLFMATE</text>
+      </svg>
       <div class="home-tagline">Score · Stableford · Match · Net</div>
     </div>
 
